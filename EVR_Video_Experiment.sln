@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.25920.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EVR_Video_Experiment", "EVR_Video_Experiment\EVR_Video_Experiment.vcxproj", "{32C52A2F-C306-4CD6-A16C-36E402B18F72}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{32C52A2F-C306-4CD6-A16C-36E402B18F72}.Debug|x64.ActiveCfg = Debug|x64
+		{32C52A2F-C306-4CD6-A16C-36E402B18F72}.Debug|x64.Build.0 = Debug|x64
+		{32C52A2F-C306-4CD6-A16C-36E402B18F72}.Debug|x86.ActiveCfg = Debug|Win32
+		{32C52A2F-C306-4CD6-A16C-36E402B18F72}.Debug|x86.Build.0 = Debug|Win32
+		{32C52A2F-C306-4CD6-A16C-36E402B18F72}.Release|x64.ActiveCfg = Release|x64
+		{32C52A2F-C306-4CD6-A16C-36E402B18F72}.Release|x64.Build.0 = Release|x64
+		{32C52A2F-C306-4CD6-A16C-36E402B18F72}.Release|x86.ActiveCfg = Release|Win32
+		{32C52A2F-C306-4CD6-A16C-36E402B18F72}.Release|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

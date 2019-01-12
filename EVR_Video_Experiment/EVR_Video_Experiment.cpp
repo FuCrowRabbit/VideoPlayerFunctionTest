@@ -6,15 +6,15 @@
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
-const LPCWSTR const VIDEOpass(L"C:\\Downloads\\munou.mp4");
-//ª“®‰æ‚ÌƒpƒX‚ğ‚±‚±‚É“ü—Í‚µ‚ÄAÀs‚µ‚Ä‚İ‚æ‚¤!('\'‚ÍƒGƒXƒP[ƒvƒV[ƒPƒ“ƒX‚ª“­‚¢‚Ä‚¢‚é‚Ì‚Å’ˆÓ)
+const LPCWSTR const VIDEOpass(L"D:\\CrowRabbit\\Videos\\gochiusa.mp4");
+//â†‘å‹•ç”»ã®ãƒ‘ã‚¹ã‚’ã“ã“ã«å…¥åŠ›ã—ã¦ã€å®Ÿè¡Œã—ã¦ã¿ã‚ˆã†!('\'ã¯ã‚¨ã‚¹ã‚±ãƒ¼ãƒ—ã‚·ãƒ¼ã‚±ãƒ³ã‚¹ãŒåƒã„ã¦ã„ã‚‹ã®ã§æ³¨æ„)
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 
 
 
 
-// Unicode•¶šƒZƒbƒg
+// Unicodeæ–‡å­—ã‚»ãƒƒãƒˆ
 #pragma comment(lib, "strmiids.lib")
 
 #include <DShow.h>
@@ -24,25 +24,65 @@ const LPCWSTR const VIDEOpass(L"C:\\Downloads\\munou.mp4");
 const LPCWSTR const CLASSname(L"DirectShow_EVR");
 const LPCWSTR const WINDOWname(L"DirectShow_EVR");
 
-// ŠÖ”ƒvƒƒgƒ^ƒCƒvéŒ¾
+// é–¢æ•°ãƒ—ãƒ­ãƒˆã‚¿ã‚¤ãƒ—å®£è¨€
 HRESULT OpenFile(HWND hWnd, LPCWSTR pszFileName);
 HRESULT InitEvr(HWND hWnd);
 HRESULT SetVideoPos(HWND hWnd, int nMode);
 LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-// ŠO•”•Ï”\‘¢‘Ì
+// å¤–éƒ¨å¤‰æ•°æ§‹é€ ä½“
 static struct {
 	IBaseFilter *pEvr;
 	IGraphBuilder *pGraph;
 	IMediaControl *pControl;
 	IMFVideoDisplayControl *pVideo;
+	ICaptureGraphBuilder2 *pCGB2;
 	SIZE size;
 	int nPlay;
 	int Cusor;
 	unsigned int Cusor_time;
 	bool FullScreen_Flag;
 } g;
+//-------------------------helpers-------------------------
+#pragma comment(lib, "rpcrt4.lib")//ãªã„ã¨æœªè§£æ±ºã®ã‚¨ãƒ©ãƒ¼
+BOOL GuidFromString
+(
+	GUID* pGuid
+	, std::wstring oGuidString
+)
+{
+	// æ–‡å­—åˆ—ã‚’GUIDã«å¤‰æ›ã™ã‚‹
+	if (RPC_S_OK == ::UuidFromString((RPC_WSTR)oGuidString.c_str(), (UUID*)pGuid)) {
 
+		// å¤‰æ›ã§ãã¾ã—ãŸã€‚
+		return(TRUE);
+	}
+	return(FALSE);
+}
+
+HRESULT AddFilter(
+	IGraphBuilder *pGraph,  // Filter Graph Manager ã¸ã®ãƒã‚¤ãƒ³ã‚¿
+	const GUID& clsid,      // ä½œæˆã™ã‚‹ãƒ•ã‚£ãƒ«ã‚¿ã® CLSID
+	LPCWSTR wszName,        // ãƒ•ã‚£ãƒ«ã‚¿ã®åå‰
+	IBaseFilter **ppF)      // ãƒ•ã‚£ãƒ«ã‚¿ã¸ã®ãƒã‚¤ãƒ³ã‚¿ãŒæ ¼ç´ã•ã‚Œã‚‹
+{
+	*ppF = 0;
+	IBaseFilter *pF = 0;
+	HRESULT hr = CoCreateInstance(clsid, 0, CLSCTX_INPROC_SERVER,
+		IID_IBaseFilter, reinterpret_cast<LPVOID*>(&pF));
+	if (SUCCEEDED(hr))
+	{
+		hr = pGraph->AddFilter(pF, wszName);
+		if (SUCCEEDED(hr))
+			*ppF = pF;
+		else
+			pF->Release();
+	}
+	return hr;
+}
+
+
+//-----------------------------------------------------------
 //------------------------------------------------------------------------------
 void FullScreen(HWND hWnd)
 {
@@ -50,30 +90,30 @@ void FullScreen(HWND hWnd)
 	RECT rcDst;
 	if(!(g.FullScreen_Flag)){
 		g.FullScreen_Flag = true;
-		// ƒEƒBƒ“ƒhƒEƒXƒ^ƒCƒ‹•ÏX(ƒƒjƒ…[ƒo[‚È‚µAÅ‘O–Ê)
+		// ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚¹ã‚¿ã‚¤ãƒ«å¤‰æ›´(ãƒ¡ãƒ‹ãƒ¥ãƒ¼ãƒãƒ¼ãªã—ã€æœ€å‰é¢)
 		SetWindowLongPtr(hWnd, GWL_STYLE, WS_POPUP);
 		SetWindowLongPtr(hWnd, GWL_EXSTYLE, WS_EX_TOPMOST);
 
-		// Å‘å‰»‚·‚é
+		// æœ€å¤§åŒ–ã™ã‚‹
 		ShowWindow(hWnd, SW_MAXIMIZE);
 
-		// ƒfƒBƒXƒvƒŒƒCƒTƒCƒY‚ğæ“¾
+		// ãƒ‡ã‚£ã‚¹ãƒ—ãƒ¬ã‚¤ã‚µã‚¤ã‚ºã‚’å–å¾—
 		int mainDisplayWidth = GetSystemMetrics(SM_CXSCREEN);
 		int mainDisplayHeight = GetSystemMetrics(SM_CYSCREEN);
 
-		// ƒNƒ‰ƒCƒAƒ“ƒg—Ìˆæ‚ğƒfƒBƒXƒvƒŒ[‚É‡‚í‚¹‚é
+		// ã‚¯ãƒ©ã‚¤ã‚¢ãƒ³ãƒˆé ˜åŸŸã‚’ãƒ‡ã‚£ã‚¹ãƒ—ãƒ¬ãƒ¼ã«åˆã‚ã›ã‚‹
 		SetWindowPos(hWnd, NULL,0, 0, mainDisplayWidth, mainDisplayHeight,SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOMOVE);
 
 		SetRect(&rcDst, 0, 0, g.size.cx, g.size.cy);
 		GetClientRect(hWnd, &rcDst);
-		//g.pVideo->SetVideoPosition(&mvnr, &rcDst);(•K—v‚È‚¢)
+		//g.pVideo->SetVideoPosition(&mvnr, &rcDst);(å¿…è¦ãªã„)
 	}
 	else {
 		g.FullScreen_Flag = false;
 		SetWindowLongPtr(hWnd, GWL_STYLE, WS_OVERLAPPEDWINDOW);
 		//SetWindowLongPtr(hWnd, GWL_EXSTYLE, WS_EX_TOPMOST);
 
-		// •’Ê‚É–ß‚·
+		// æ™®é€šã«æˆ»ã™
 		ShowWindow(hWnd, SW_RESTORE); 
 		SetVideoPos(hWnd,1);
 	}
@@ -86,27 +126,27 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	HWND hWnd;
 	MSG msg = { NULL };
 	HRESULT hr;
-	g.FullScreen_Flag = false;//Flag‚Ì‰Šú‰»
-	// COMƒ‰ƒCƒuƒ‰ƒŠ‚Ì‰Šú‰»
+	g.FullScreen_Flag = false;//Flagã®åˆæœŸåŒ–
+	// COMãƒ©ã‚¤ãƒ–ãƒ©ãƒªã®åˆæœŸåŒ–
 	hr = CoInitialize(NULL);
 	if (FAILED(hr)) {
 		return 0;
 	}
 
-	// ƒEƒBƒ“ƒhƒEƒNƒ‰ƒX‚Ì“o˜^
+	// ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚¯ãƒ©ã‚¹ã®ç™»éŒ²
 	ZeroMemory(&wcx, sizeof wcx);
 	wcx.cbSize = sizeof wcx;
 	wcx.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
 	wcx.lpfnWndProc = MainWndProc;
 	wcx.hInstance = hInstance;
 	wcx.hCursor = LoadCursor(NULL, MAKEINTRESOURCE(IDC_ARROW));
-	wcx.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);	// •‚ª‚¢‚¢‚©‚à
+	wcx.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);	// é»’ãŒã„ã„ã‹ã‚‚
 	wcx.lpszClassName = CLASSname;
 	if (RegisterClassEx(&wcx) == 0) {
 		goto Exit;
 	}
 
-	// ƒEƒBƒ“ƒhƒE‚Ìì¬
+	// ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã®ä½œæˆ
 	hWnd = CreateWindow(CLASSname, WINDOWname,
 		WS_OVERLAPPEDWINDOW,
 		//		CW_USEDEFAULT, 0, CW_USEDEFAULT, 0,
@@ -116,7 +156,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		goto Exit;
 	}
 
-	// DirectShowƒtƒBƒ‹ƒ^‚Ì€”õ
+	// DirectShowãƒ•ã‚£ãƒ«ã‚¿ã®æº–å‚™
 
 	hr = OpenFile(hWnd, VIDEOpass);
 	if (FAILED(hr)) {
@@ -126,18 +166,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	ShowWindow(hWnd, nCmdShow);
 
-	// “®‰æÄ¶
+	// å‹•ç”»å†ç”Ÿ
 	hr = g.pControl->Run();
 	g.nPlay = 1;
 
-	// ƒƒbƒZ[ƒWƒ‹[ƒv
+	// ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ãƒ«ãƒ¼ãƒ—
 	do {
 		Sleep(1);
 		if (g.Cusor >= 0) {
 			if (g.Cusor_time > 0) {
 				g.Cusor_time--;
 			}
-			else{//(g.Cusor_time == 0)‚Æ“¯ˆÓ‹` 
+			else{//(g.Cusor_time == 0)ã¨åŒæ„ç¾© 
 				g.Cusor = ShowCursor(false);
 			}
 		}
@@ -147,7 +187,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		}
 	} while (msg.message != WM_QUIT);
 
-	// “®‰æ’â~
+	// å‹•ç”»åœæ­¢
 	hr = g.pControl->Stop();
 	Sleep(1000);
 Exit:
@@ -162,36 +202,41 @@ Exit:
 //------------------------------------------------------------------------------
 HRESULT OpenFile(HWND hWnd, LPCWSTR pszFile)
 {
-	// ƒtƒBƒ‹ƒ^ƒOƒ‰ƒt‚Ìì¬
+	// ãƒ•ã‚£ãƒ«ã‚¿ã‚°ãƒ©ãƒ•ã®ä½œæˆ
 	HRESULT hr = CoCreateInstance(CLSID_FilterGraph, NULL, CLSCTX_INPROC_SERVER,
 		IID_PPV_ARGS(&g.pGraph));
 
-	// ƒƒfƒBƒAƒRƒ“ƒgƒ[ƒ‹ƒCƒ“ƒ^[ƒtƒFƒCƒX‚Ìæ“¾
+	// ãƒ¡ãƒ‡ã‚£ã‚¢ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã‚¤ãƒ³ã‚¿ãƒ¼ãƒ•ã‚§ã‚¤ã‚¹ã®å–å¾—
 	if (SUCCEEDED(hr)) {
 
 		hr = g.pGraph->QueryInterface(IID_PPV_ARGS(&g.pControl));
 	}
 
-	// ƒrƒfƒI‚Ìì¬
+	if (SUCCEEDED(hr)) {
+		hr = CoCreateInstance(CLSID_CaptureGraphBuilder2, NULL, CLSCTX_INPROC_SERVER, IID_ICaptureGraphBuilder2, (void **)&g.pCGB2);
+	}
+
+	// ãƒ“ãƒ‡ã‚ªã®ä½œæˆ
 	if (SUCCEEDED(hr)) {
 
 		hr = InitEvr(hWnd);
 	}
-	// ƒOƒ‰ƒt‚ğì¬‚·‚é
+
 	if (SUCCEEDED(hr)) {
-		//Graph(pszFile);
 		hr = g.pGraph->RenderFile(pszFile, NULL);
 	}
 
-	// •`‰æ—Ìˆæ‚Ìİ’è
+	// æç”»é ˜åŸŸã®è¨­å®š
 	if (SUCCEEDED(hr)) {
 
 		g.pVideo->GetNativeVideoSize(&g.size, NULL);
 	}
+
 	if (SUCCEEDED(hr)) {
 
 		hr = SetVideoPos(hWnd, 1);
 	}
+
 	return hr;
 }
 
@@ -199,11 +244,11 @@ HRESULT OpenFile(HWND hWnd, LPCWSTR pszFile)
 HRESULT InitEvr(HWND hWnd)
 {
 
-	// EVR‚Ìì¬
+	// EVRã®ä½œæˆ
 	HRESULT hr = CoCreateInstance(CLSID_EnhancedVideoRenderer, NULL, CLSCTX_INPROC_SERVER,
 		IID_PPV_ARGS(&g.pEvr));
 
-	// ƒtƒBƒ‹ƒ^ƒOƒ‰ƒt‚ÉEVR‚ğ’Ç‰Á
+	// ãƒ•ã‚£ãƒ«ã‚¿ã‚°ãƒ©ãƒ•ã«EVRã‚’è¿½åŠ 
 	if (SUCCEEDED(hr)) {
 		hr = g.pGraph->AddFilter(g.pEvr, L"EVR");
 	}
@@ -272,7 +317,7 @@ LRESULT CALLBACK MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		break;	
 	case WM_LBUTTONDOWN:
 		if(!(g.FullScreen_Flag)){
-			PostMessage(hWnd, WM_NCLBUTTONDOWN, HTCAPTION, lParam);//ƒNƒ‰ƒCƒAƒ“ƒg‚Ìã‚ÅƒEƒBƒ“ƒhƒE‚ğ“®‚©‚·B
+			PostMessage(hWnd, WM_NCLBUTTONDOWN, HTCAPTION, lParam);//ã‚¯ãƒ©ã‚¤ã‚¢ãƒ³ãƒˆã®ä¸Šã§ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚’å‹•ã‹ã™ã€‚
 		}
 		break;
 	case WM_LBUTTONDBLCLK:

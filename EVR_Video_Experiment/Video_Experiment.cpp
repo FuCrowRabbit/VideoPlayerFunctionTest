@@ -1,5 +1,4 @@
 ﻿#include "stdafx.h"
-#include "atlbase.h"
 #include "Video_Experiment.h"
 #include "interfaces\mvrInterfaces.h"
 
@@ -17,19 +16,106 @@ LPCWSTR VideoPlayer::window_name(L"DirectShow_madVR");
 
 VideoPlayer::VideoPlayer(HINSTANCE hInstance) : size{}, nPlay{ 0 }, Cusor{ 0 }, Cusor_time{ 0 }, FullScreen_Flag(false)
 {
-   ZeroMemory(&wcx, sizeof wcx);
-   wcx.cbSize = sizeof wcx;
-   wcx.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;
-   wcx.lpfnWndProc = VideoPlayer::MainWndProc;
-   wcx.hInstance = hInstance;
-   wcx.hCursor = LoadCursor(nullptr, MAKEINTRESOURCE(IDC_ARROW));
-   wcx.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1); // 黒がいいかも
-   wcx.lpszClassName = VideoPlayer::class_name_directshow_madvr;
-   if (!RegisterClassEx(&wcx)) throw std::exception("aa");
+   auto hr = CoInitialize(nullptr); // COMライブラリの初期化
 }
 
 VideoPlayer::~VideoPlayer()
 {
+   CoUninitialize();
+}
+
+void VideoPlayer::onChar(UINT nChar, UINT nRepCnt, UINT nFlags)
+{
+   switch (nChar)
+   {
+   case VK_SPACE:
+      if (this->nPlay)
+      {
+         this->pControl->Pause();
+         this->nPlay = 0;
+      }
+      else
+      {
+         this->pControl->Run();
+         this->nPlay = 1;
+      }
+      break;
+   case 's':
+      this->pControl->StopWhenReady();
+      this->nPlay = 0;
+      break;
+   case '1': case '2': case '3': case '4':
+      SetVideoPos(nChar - '0');
+      break;
+   case VK_ESCAPE:
+      DestroyWindow();
+      break;
+   }
+}
+
+void VideoPlayer::onPaint(CDCHandle dc)
+{
+   if (this->Cusor >= 0)
+   {
+      if (this->Cusor_time > 0)
+      {
+         this->Cusor_time--;
+      }
+      else
+      {
+         //(player.Cusor_time == 0)と同意義 
+         //player.Cusor = ShowCursor(false);
+      }
+   }
+}
+
+void VideoPlayer::onSize(UINT nType, WTL::CSize size)
+{
+   SetVideoPos(0);
+}
+
+void VideoPlayer::onLButtonDown(UINT nFlags, WTL::CPoint point)
+{
+   if (!(this->FullScreen_Flag))
+   {
+      PostMessage(WM_NCLBUTTONDOWN, HTCAPTION, nFlags); //クライアントの上でウィンドウを動かす。
+   }
+}
+
+void VideoPlayer::onLButtonDblClk(UINT nFlags, WTL::CPoint point)
+{
+   FullScreen();
+}
+
+void VideoPlayer::onDestroy()
+{
+   while (this->Cusor < 0)
+   {
+      this->Cusor = ShowCursor(true);
+   }
+   auto pLoop = _Module.GetMessageLoop();
+   pLoop->RemoveMessageFilter(this);
+   pLoop->RemoveIdleHandler(this);
+   PostQuitMessage(0);
+}
+
+int VideoPlayer::onCreate(LPCREATESTRUCT lpCreateStruct)
+{
+   auto pLoop = _Module.GetMessageLoop();
+   pLoop->AddMessageFilter(this);
+   pLoop->AddIdleHandler(this);
+   this->Cusor_time = 1000;
+   this->Cusor = 0;
+   return 0;
+}
+
+void VideoPlayer::onMouseMove(UINT nFlags, WTL::CPoint point)
+{
+   this->Cusor_time = 1000;
+   while (this->Cusor < 0)
+   {
+      this->Cusor = ShowCursor(true);
+   }
 }
 
 BOOL VideoPlayer::toGuidFromString(GUID* pGuid, std::wstring oGuidString)
@@ -64,7 +150,7 @@ HRESULT VideoPlayer::addFilter(
    return hr;
 }
 
-void VideoPlayer::FullScreen(HWND hWnd)
+void VideoPlayer::FullScreen()
 {
    MFVideoNormalizedRect mvnr = { 0.0f, 0.0f, 1.0f, 1.0f };
    RECT rcDst;
@@ -72,32 +158,32 @@ void VideoPlayer::FullScreen(HWND hWnd)
    {
       this->FullScreen_Flag = true;
       // ウィンドウスタイル変更(メニューバーなし、最前面)
-      SetWindowLongPtr(hWnd, GWL_STYLE, WS_POPUP);
-      SetWindowLongPtr(hWnd, GWL_EXSTYLE, WS_EX_TOPMOST);
+      SetWindowLongPtr(GWL_STYLE, WS_POPUP);
+      SetWindowLongPtr(GWL_EXSTYLE, WS_EX_TOPMOST);
 
       // 最大化する
-      ShowWindow(hWnd, SW_MAXIMIZE);
+      ShowWindow(SW_MAXIMIZE);
 
       // ディスプレイサイズを取得
       int mainDisplayWidth = GetSystemMetrics(SM_CXSCREEN);
       int mainDisplayHeight = GetSystemMetrics(SM_CYSCREEN);
 
       // クライアント領域をディスプレーに合わせる
-      SetWindowPos(hWnd, NULL, 0, 0, mainDisplayWidth, mainDisplayHeight, SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOMOVE);
+      SetWindowPos(NULL, 0, 0, mainDisplayWidth, mainDisplayHeight, SWP_FRAMECHANGED | SWP_NOZORDER | SWP_NOMOVE);
 
       SetRect(&rcDst, 0, 0, this->size.cx, this->size.cy);
-      GetClientRect(hWnd, &rcDst);
+      GetClientRect(&rcDst);
       //this->pVideo->SetVideoPosition(&mvnr, &rcDst);(必要ない)
    }
    else
    {
       this->FullScreen_Flag = false;
-      SetWindowLongPtr(hWnd, GWL_STYLE, WS_OVERLAPPEDWINDOW);
+      SetWindowLongPtr(GWL_STYLE, WS_OVERLAPPEDWINDOW);
       //SetWindowLongPtr(hWnd, GWL_EXSTYLE, WS_EX_TOPMOST);
 
       // 普通に戻す
-      ShowWindow(hWnd, SW_RESTORE);
-      SetVideoPos(hWnd, 1);
+      ShowWindow(SW_RESTORE);
+      SetVideoPos(1);
    }
 }
 
@@ -369,7 +455,7 @@ HRESULT VideoPlayer::InitMadVR()
 
 //------------------------------------------------------------------------------
 
-HRESULT VideoPlayer::SetVideoPos(HWND hWnd, int nMode)
+HRESULT VideoPlayer::SetVideoPos(int nMode)
 {
    MFVideoNormalizedRect mvnr = { 0.0f, 0.0f, 1.0f, 1.0f };
    RECT rcDst;
@@ -378,81 +464,8 @@ HRESULT VideoPlayer::SetVideoPos(HWND hWnd, int nMode)
    {
       SetRect(&rcDst, 0, 0, this->size.cx * nMode / 2, this->size.cy * nMode / 2);
       AdjustWindowRectEx(&rcDst, WS_OVERLAPPEDWINDOW, FALSE, 0);
-      SetWindowPos(hWnd, NULL, 0, 0, 640, 480,
-         SWP_NOZORDER | SWP_NOMOVE);
+      SetWindowPos(NULL, 0, 0, 640, 480, SWP_NOZORDER | SWP_NOMOVE);
    }
-   GetClientRect(hWnd, &rcDst);
+   GetClientRect(&rcDst);
    return this->pWindow->SetWindowPosition(0, 0, rcDst.right - rcDst.left, rcDst.bottom - rcDst.top);
-}
-
-//------------------------------------------------------------------------------
-LRESULT CALLBACK VideoPlayer::MainWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-   switch (uMsg)
-   {
-      /*
-      case WM_CHAR:
-         switch (wParam)
-         {
-         case VK_SPACE:
-            if (this->nPlay)
-            {
-               this->pControl->Pause();
-               this->nPlay = 0;
-            }
-            else
-            {
-               this->pControl->Run();
-               this->nPlay = 1;
-            }
-            break;
-         case 's':
-            this->pControl->StopWhenReady();
-            this->nPlay = 0;
-            break;
-         case '1': case '2': case '3': case '4':
-            SetVideoPos(hWnd, wParam - '0');
-            break;
-         case VK_ESCAPE:
-            DestroyWindow(hWnd);
-            break;
-         }
-         break;
-      case WM_SIZE:
-         SetVideoPos(hWnd, 0);
-         break;
-      case WM_LBUTTONDOWN:
-         if (!(this->FullScreen_Flag))
-         {
-            PostMessage(hWnd, WM_NCLBUTTONDOWN, HTCAPTION, lParam); //クライアントの上でウィンドウを動かす。
-         }
-         break;
-      case WM_LBUTTONDBLCLK:
-         FullScreen(hWnd);
-         break;
-      case WM_DESTROY:
-         while (this->Cusor < 0)
-         {
-            this->Cusor = ShowCursor(true);
-         }
-         PostQuitMessage(0);
-         break;
-      case WM_CREATE:
-         this->Cusor_time = 1000;
-         this->Cusor = 0;
-         break;
-      case WM_MOUSEMOVE:
-         this->Cusor_time = 1000;
-         while (this->Cusor < 0)
-         {
-            this->Cusor = ShowCursor(true);
-         }
-         break;
-      */
-   }
-   // if (this->pWindow)
-   // {
-   //   this->pWindow->NotifyOwnerMessage((OAHWND)hWnd, uMsg, wParam, lParam);
-   // }
-   return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
